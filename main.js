@@ -1,25 +1,54 @@
-var jsonString = "{\n    \"keys\": {\n      \"n\": 4,\n      \"k\": 3\n    },\n    \"1\": {\n      \"base\": \"10\",\n      \"value\": \"4\"\n    },\n    \"2\": {\n      \"base\": \"2\",\n      \"value\": \"111\"\n    },\n    \"3\": {\n      \"base\": \"10\",\n      \"value\": \"12\"\n    },\n    \"6\": {\n      \"base\": \"4\",\n      \"value\": \"213\"\n    }\n  }";
-function convertToDecimal(base, value) {
-    return parseInt(value, parseInt(base));
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+var fs = require("fs");
+var path = require("path");
+function decodeValue(value, base) {
+    return parseInt(value, base);
 }
-function main() {
-    var data = JSON.parse(jsonString);
-    var n = data.keys.n; // number of roots
-    var k = data.keys.k; // min roots required
-    var roots = [];
-    for (var key in data) {
-        if (key !== "keys") {
-            var base = data[key].base;
-            var value = data[key].value;
-            var decimalValue = convertToDecimal(base, value);
-            roots.push([parseInt(key), decimalValue]); // x is the key, y is the decimal value
+function calculateSecret(points) {
+    var k = points.length; // Number of points
+    var secret = 0;
+    // Lagrange interpolation
+    for (var i = 0; i < k; i++) {
+        var xi = points[i][0];
+        var yi = points[i][1];
+        var term = yi;
+        for (var j = 0; j < k; j++) {
+            if (i !== j) {
+                var xj = points[j][0];
+                term *= (0 - xj) / (xi - xj);
+            }
+        }
+        secret += term;
+    }
+    return secret;
+}
+function processInput(fileName) {
+    var input = JSON.parse(fs.readFileSync(path.join(__dirname, fileName), 'utf-8'));
+    var n = input.keys.n;
+    var k = input.keys.k;
+    if (k > n) {
+        console.log("Not enough roots to calculate c for ".concat(fileName, "."));
+        return;
+    }
+    var points = [];
+    for (var i = 1; i <= n; i++) {
+        if (input[i.toString()]) {
+            var base = parseInt(input[i.toString()].base);
+            var value = input[i.toString()].value;
+            var decodedValue = decodeValue(value, base);
+            points.push([i, decodedValue]);
         }
     }
-    if (roots.length < k) {
-        throw new Error("Not enough roots provided.");
+    if (points.length < k) {
+        console.log("Not enough roots to calculate c for ".concat(fileName, "."));
+        return;
     }
-    // Assuming a simple linear polynomial (degree 1) for this example
-    var lastTerm = roots[0][1]; // Using the first root to find c
-    console.log("The constant term c (using first root) is: ".concat(lastTerm));
+    var secret = calculateSecret(points.slice(0, k));
+    console.log("The constant term c for ".concat(fileName, " is: ").concat(secret));
+}
+function main() {
+    processInput('input.json');
+    processInput('input2.json');
 }
 main();
